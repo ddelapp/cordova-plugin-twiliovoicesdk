@@ -66,7 +66,7 @@ static NSString *const kTwimlParamTo = @"To";
 - (void) pluginInitialize {
     [super pluginInitialize];
     
-    NSLog(@"Initializing plugin");
+    NSLog(@"Initializing TwilioVoicePlugin");
     NSString *debugTwilioPreference = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPEnableDebugging"] uppercaseString];
     if ([debugTwilioPreference isEqualToString:@"YES"] || [debugTwilioPreference isEqualToString:@"TRUE"]) {
         [TwilioVoice setLogLevel:TVOLogLevelDebug];
@@ -80,8 +80,10 @@ static NSString *const kTwimlParamTo = @"To";
         self.enableCallKit = YES;
         self.audioDevice = [TVODefaultAudioDevice audioDevice];
         TwilioVoice.audioDevice = self.audioDevice;
+        NSLog(@"CALL KIT HAS BEEN ENABLED");
     } else {
         self.enableCallKit = NO;
+        NSLog(@"CALL KIT NOT ENABLED");
     }
 
     // read in MASK_INCOMING_PHONE_NUMBER preference
@@ -319,6 +321,7 @@ static NSString *const kTwimlParamTo = @"To";
 //}
 
 - (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion {
+    
     NSLog(@"pushRegistry:didReceiveIncomingPushWithPayload:forType:withCompletionHandler:");
     
     // Save for later when the notification is properly handled.
@@ -329,6 +332,41 @@ static NSString *const kTwimlParamTo = @"To";
             NSLog(@"This is not a valid Twilio Voice notification.");
         }
     }
+    
+    if ([payload.dictionaryPayload[@"twi_message_type"] isEqualToString:@"twilio.voice.cancel"]) {
+        CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
+
+        CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
+        callUpdate.remoteHandle = callHandle;
+        callUpdate.supportsDTMF = YES;
+        callUpdate.supportsHolding = YES;
+        callUpdate.supportsGrouping = NO;
+        callUpdate.supportsUngrouping = NO;
+        callUpdate.hasVideo = NO;
+
+        NSUUID *uuid = [NSUUID UUID];
+
+        [self.callKitProvider reportNewIncomingCallWithUUID:uuid update:callUpdate completion:^(NSError *error) {
+            NSLog(@"Call Kit Provider reportNewIncomingCallWithUUID.");
+        }];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            CXEndCallAction *endCallAction = [[CXEndCallAction alloc] initWithCallUUID:uuid];
+            CXTransaction *transaction = [[CXTransaction alloc] initWithAction:endCallAction];
+
+            [self.callKitCallController requestTransaction:transaction completion:^(NSError *error) {
+                NSLog(@"Call Kit Provider requestTransaction.");
+            }];
+        });
+
+        return;
+    }
+    
+    
+    
+    
+    
+    
 }
 
 - (void)incomingPushHandled {

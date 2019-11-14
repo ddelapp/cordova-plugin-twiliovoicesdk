@@ -6,7 +6,7 @@
 
     <name>TwilioVoice</name>
     <description>Use the Twilio Voice SDK for iOS or Android with Cordova/PhoneGap. Successor to Twilio Client Plugin</description>
-    <author>Jeff Linwood/Stevie Graham/Lyle Pratt</author>
+    <author>Jeff Linwood/Stevie Graham/Lyle Pratt/Devin DeLapp</author>
     <license>MIT</license>
     <js-module name="CordovaCall" src="www/TwilioVoicePlugin.js">
         <clobbers target="TwilioPlugin.TwilioVoiceClient" />   
