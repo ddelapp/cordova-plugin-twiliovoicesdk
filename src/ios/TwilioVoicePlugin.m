@@ -4,6 +4,7 @@
 //
 //  Created by Jeffrey Linwood on 3/11/17.
 //  Updated by Adam Rivera 02/24/2018.
+//  Updated by Devin DeLapp 11/15/2019.
 //
 //  Based on https://github.com/twilio/voice-callkit-quickstart-objc
 //
@@ -17,6 +18,7 @@
 @import UserNotifications;
 
 static NSString *const kTwimlParamTo = @"To";
+static NSString *const kTwimlParamFrom = @"From";
 
 @interface TwilioVoicePlugin () <PKPushRegistryDelegate, TVOCallDelegate, TVONotificationDelegate, CXProviderDelegate>
 
@@ -158,6 +160,26 @@ static NSString *const kTwimlParamTo = @"To";
     
 }
 
+- (void) unregister:(CDVInvokedUrlCommand*)command  {
+    NSLog(@"Unregister access token");
+    
+    // retain this command as the callback to use for raising Twilio events
+    self.callback = command.callbackId;
+    if (self.accessToken) {
+        [TwilioVoice unregisterWithAccessToken:self.accessToken deviceToken:self.pushDeviceToken completion:^(NSError * _Nullable error) {
+            if (error) {
+                NSLog(@"Error unregistering Voice Client for VOIP Push: %@", [error localizedDescription]);
+            } else {
+                NSLog(@"Unregistered Voice Client for VOIP Push");
+            }
+            [self javascriptCallback:@"onunregistered"];
+        }];
+        
+        // Deactivate any calls.
+        [self.callKitProvider invalidate];
+    }
+}
+
 - (void) call:(CDVInvokedUrlCommand*)command {
     if ([command.arguments count] > 0) {
         self.accessToken = command.arguments[0];
@@ -174,10 +196,15 @@ static NSString *const kTwimlParamTo = @"To";
                 [self performStartCallActionWithUUID:uuid handle:incomingCallAppName];
             } else {
                 NSLog(@"Making call to with params %@", self.outgoingCallParams);
-                TVOConnectOptions *connectOptions = [TVOConnectOptions optionsWithAccessToken:self.accessToken
-                                                                                        block:^(TVOConnectOptionsBuilder *builder) {
-                                                                                            builder.params = @{kTwimlParamTo:self.outgoingCallParams[@"To"]};
-                                                                                        }];
+                TVOConnectOptions *connectOptions = [TVOConnectOptions
+                                                     optionsWithAccessToken:self.accessToken
+                                                     block:^(TVOConnectOptionsBuilder *builder) {
+                                                        builder.params = @{
+                                                            kTwimlParamTo:self.outgoingCallParams[@"To"],
+                                                            kTwimlParamFrom:self.outgoingCallParams[@"From"]
+                                                            
+                                                        };
+                                                    }];
                 self.call = [TwilioVoice connectWithOptions:connectOptions delegate:self];
                 self.outgoingCallParams = nil;
             }
@@ -276,6 +303,25 @@ static NSString *const kTwimlParamTo = @"To";
     }
 }
 
+- (void) updateCall: (CDVInvokedUrlCommand*)command {
+    if(!self.call) {
+        return;
+    }
+
+    CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
+
+    CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
+    callUpdate.localizedCallerName =
+    callUpdate.remoteHandle = callHandle;
+    callUpdate.supportsDTMF = YES;
+    callUpdate.supportsHolding = YES;
+    callUpdate.supportsGrouping = NO;
+    callUpdate.supportsUngrouping = NO;
+    callUpdate.hasVideo = NO;
+
+    [self.callKitProvider reportCallWithUUID:self.call.uuid updated: callUpdate];
+}
+
 #pragma mark PKPushRegistryDelegate methods
 - (void)pushRegistry:(PKPushRegistry *)registry didUpdatePushCredentials:(PKPushCredentials *)credentials forType:(PKPushType)type {
     if ([type isEqualToString:PKPushTypeVoIP]) {
@@ -302,14 +348,18 @@ static NSString *const kTwimlParamTo = @"To";
     if ([type isEqualToString:PKPushTypeVoIP]) {
         NSLog(@"Invalidating push device token for VOIP: %@",self.pushDeviceToken);
         [TwilioVoice unregisterWithAccessToken:self.accessToken
-                                                    deviceToken:self.pushDeviceToken completion:^(NSError * _Nullable error) {
+                                   deviceToken:self.pushDeviceToken
+                                    completion:^(NSError * _Nullable error) {
             if (error) {
                 NSLog(@"Error unregistering Voice Client for VOIP Push: %@", [error localizedDescription]);
             } else {
                 NSLog(@"Unegistered Voice Client for VOIP Push");
             }
+                        
             self.pushDeviceToken = nil;
         }];
+        
+        [self javascriptCallback:@"ondidinvalidatepushtoken"];
     }
 }
 
@@ -337,6 +387,7 @@ static NSString *const kTwimlParamTo = @"To";
         CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
 
         CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
+        callUpdate.localizedCallerName = @"Caller Name Here!";
         callUpdate.remoteHandle = callHandle;
         callUpdate.supportsDTMF = YES;
         callUpdate.supportsHolding = YES;
@@ -696,7 +747,6 @@ static NSString *const kTwimlParamTo = @"To";
             callUpdate.supportsGrouping = NO;
             callUpdate.supportsUngrouping = NO;
             callUpdate.hasVideo = NO;
-            
             [self.callKitProvider reportCallWithUUID:uuid updated:callUpdate];
         }
     }];

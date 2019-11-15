@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+      "outDir": "./www",
+      "target": "es5",
+      "noImplicitAny": false,
+      "sourceMap": true,
+      "allowSyntheticDefaultImports": true,
+      "lib": ["es5", "es2015", "dom", "scripthost"]
+    },
+    "include": [
+        "www/**/*"
+    ],
+    "exclude": [
+      "node_modules"
+    ]
+  }

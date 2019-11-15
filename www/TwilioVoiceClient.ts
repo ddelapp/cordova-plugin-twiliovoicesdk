@@ -1,3 +1,7 @@
+import { CallUpdate } from "./types/CallUpdate";
+import { ICallInviteReceived } from "./types/ICallInviteReceived";
+import { ICallDidConnect } from "./types/ICallDidConnect";
+
 /* global Cordova */
 declare var Cordova: any;
 
@@ -6,6 +10,8 @@ declare var Cordova: any;
 * The Twilio client plugin provides some functions to access native Twilio SDK.
 */
 export class TwilioVoiceClient {
+
+    PLUGIN_NAME = 'TwilioVoicePlugin';
 
     private delegate = [];
 
@@ -16,7 +22,7 @@ export class TwilioVoiceClient {
     * @param params - Mimics the TVOConnectOptions ["To", "From"]
     */
     public call(accessToken: string, params: any) : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "call", [accessToken, params]);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "call", [accessToken, params]);
     }
 
    /**
@@ -26,28 +32,43 @@ export class TwilioVoiceClient {
     * ‘*’, ‘#’, and ‘w’. Each ‘w’ will cause a 500 ms pause between digits sent.
     */
     public sendDigits(digits: string) : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "sendDigits", [digits]);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "sendDigits", [digits]);
+    }
+
+    /**
+     * Update a calls data.
+     * @param call Updated package of the call's abilities.
+     */
+    public updateCall(call: CallUpdate) : void {
+        Cordova.exec(null, null, this.PLUGIN_NAME, "updateCall", [
+            call.localizedCallerName,
+            call.supportsHolding,
+            call.supportsGrouping,
+            call.supportsUngrouping,
+            call.supportsDtmf,
+            call.hasVideo
+        ]);
     }
 
    /**
     * Disconnects the Call.
     */
     public disconnect() : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "disconnect", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "disconnect", null);
     }
 
    /**
     * Rejects the incoming Call Invite.
     */
     public rejectCallInvite() : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "rejectCallInvite", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "rejectCallInvite", null);
     }
 
    /**
     * Accepts the incoming Call Invite.
     */
     public acceptCallInvite() : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "acceptCallInvite", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "acceptCallInvite", null);
     }
 
    /**
@@ -57,28 +78,28 @@ export class TwilioVoiceClient {
     */
     public setSpeaker(mode: string) : void {
         // "on" or "off"
-        Cordova.exec(null, null, "TwilioVoicePlugin", "setSpeaker", [mode]);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "setSpeaker", [mode]);
     }
 
    /**
     * Mute the Call.
     */
     public muteCall() : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "muteCall", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "muteCall", null);
     }
 
    /**
     * Unmute the Call.
     */
     public unmuteCall() : void {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "unmuteCall", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "unmuteCall", null);
     }
 
    /**
     * Returns a call delegate with a call mute or unmute. 
     */
     public isCallMuted(fn: (isMuted: boolean) => boolean) : void {
-        Cordova.exec(fn, null, "TwilioVoicePlugin", "isCallMuted", null);
+        Cordova.exec(fn, null, this.PLUGIN_NAME, "isCallMuted", null);
     }
 
    /**
@@ -97,8 +118,17 @@ export class TwilioVoiceClient {
             var argument = callback['arguments'];
             if (this.delegate[callback['callback']]) this.delegate[callback['callback']](argument);
         }
-        console.log(Cordova);
-        Cordova.exec(success, error, "TwilioVoicePlugin", "initializeWithAccessToken", [accessToken]);
+        
+        Cordova.exec(success, error, this.PLUGIN_NAME, "initializeWithAccessToken", [accessToken]);
+    }
+
+    /**
+     * Unregisters the JWT access token so this client is not forwarded calls.
+     */
+    public unregister() : Promise<string> {
+        return new Promise<string>((resolve, reject) => {
+            Cordova.exec(resolve, reject, this.PLUGIN_NAME, "unregister")
+        });
     }
 
    /**
@@ -113,7 +143,7 @@ export class TwilioVoiceClient {
     * Delegate fired when the Twilio client has been initialized.
     * @param fn - The callback delegate.
     */
-    public clientInitialized(fn: (result: any) => any) : void {
+    public clientInitialized(fn: () => any) : void {
         this.delegate['onclientinitialized'] = fn;
     }
 
@@ -121,7 +151,7 @@ export class TwilioVoiceClient {
     * Delegate fired when a call invite is received.
     * @param fn - The callback delegate.
     */
-    public callInviteReceived(fn: (result: any) => any) : void {
+    public callInviteReceived(fn: (result: ICallInviteReceived) => any) : void {
         this.delegate['oncallinvitereceived'] = fn;
     }
 
@@ -137,15 +167,23 @@ export class TwilioVoiceClient {
     * Delegate fired when a call connects.
     * @param fn - The callback delegate.
     */
-    public callDidConnect(fn: (result: any) => any) : void {
+    public callDidConnect(fn: (result: ICallDidConnect) => any) : void {
         this.delegate['oncalldidconnect'] = fn;
     }
 
-   /**
-    * Delegate fired when a call disconnects.
-    * @param fn - The callback delegate.
-    */
-    public callDidDisconnect(fn: (result: any) => any) : void {
-        this.delegate['oncalldiddisconnect'] = fn;
-    }
+    /**
+     * Delegate fired when a call disconnects.
+     * @param fn - The callback delegate.
+     */
+     public callDidDisconnect(fn: () => any) : void {
+         this.delegate['oncalldiddisconnect'] = fn;
+     }
+
+     /**
+      * Delegate fired when the twilio VoIP push notification token has been invalidated.
+      * @param fn - The callback delegate.
+      */
+      public didInvalidatePushToken(fn: (result: any) => any) : void {
+          this.delegate['ondidinvalidatepushtoken'] = fn;
+      }
 };

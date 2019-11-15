@@ -1,10 +1,11 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 /**
 * The Twilio client plugin provides some functions to access native Twilio SDK.
 */
 var TwilioVoiceClient = /** @class */ (function () {
     function TwilioVoiceClient() {
+        this.PLUGIN_NAME = 'TwilioVoicePlugin';
         this.delegate = [];
     }
     /**
@@ -14,33 +15,41 @@ var TwilioVoiceClient = /** @class */ (function () {
     * @param params - Mimics the TVOConnectOptions ["To", "From"]
     */
     TwilioVoiceClient.prototype.call = function (accessToken, params) {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "call", [accessToken, params]);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "call", [accessToken, params]);
     };
     /**
      * Send a string of digits.
      *
-     * @param digits - A string of characters to be played. Valid values are ‘0’ - ‘9’, ‘*’, ‘#’, and ‘w’. Each ‘w’ will cause a 500 ms pause between digits sent.
+     * @param digits - A string of characters to be played. Valid values are ‘0’ - ‘9’,
+     * ‘*’, ‘#’, and ‘w’. Each ‘w’ will cause a 500 ms pause between digits sent.
      */
     TwilioVoiceClient.prototype.sendDigits = function (digits) {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "sendDigits", [digits]);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "sendDigits", [digits]);
+    };
+    /**
+     * Update a calls data.
+     * @param call Updated package of the call's abilities.
+     */
+    TwilioVoiceClient.prototype.updateCall = function (call) {
+        Cordova.exec(null, null, this.PLUGIN_NAME, "updateCall", [call]);
     };
     /**
      * Disconnects the Call.
      */
     TwilioVoiceClient.prototype.disconnect = function () {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "disconnect", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "disconnect", null);
     };
     /**
      * Rejects the incoming Call Invite.
      */
     TwilioVoiceClient.prototype.rejectCallInvite = function () {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "rejectCallInvite", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "rejectCallInvite", null);
     };
     /**
      * Accepts the incoming Call Invite.
      */
     TwilioVoiceClient.prototype.acceptCallInvite = function () {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "acceptCallInvite", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "acceptCallInvite", null);
     };
     /**
      * Turns on or off phone speaker.
@@ -49,25 +58,25 @@ var TwilioVoiceClient = /** @class */ (function () {
      */
     TwilioVoiceClient.prototype.setSpeaker = function (mode) {
         // "on" or "off"
-        Cordova.exec(null, null, "TwilioVoicePlugin", "setSpeaker", [mode]);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "setSpeaker", [mode]);
     };
     /**
      * Mute the Call.
      */
     TwilioVoiceClient.prototype.muteCall = function () {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "muteCall", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "muteCall", null);
     };
     /**
      * Unmute the Call.
      */
     TwilioVoiceClient.prototype.unmuteCall = function () {
-        Cordova.exec(null, null, "TwilioVoicePlugin", "unmuteCall", null);
+        Cordova.exec(null, null, this.PLUGIN_NAME, "unmuteCall", null);
     };
     /**
      * Returns a call delegate with a call mute or unmute.
      */
     TwilioVoiceClient.prototype.isCallMuted = function (fn) {
-        Cordova.exec(fn, null, "TwilioVoicePlugin", "isCallMuted", null);
+        Cordova.exec(fn, null, this.PLUGIN_NAME, "isCallMuted", null);
     };
     /**
      * Initializes the plugin to send and receive calls.
@@ -86,8 +95,16 @@ var TwilioVoiceClient = /** @class */ (function () {
             if (_this.delegate[callback['callback']])
                 _this.delegate[callback['callback']](argument);
         };
-        console.log(Cordova);
-        Cordova.exec(success, error, "TwilioVoicePlugin", "initializeWithAccessToken", [accessToken]);
+        Cordova.exec(success, error, this.PLUGIN_NAME, "initializeWithAccessToken", [accessToken]);
+    };
+    /**
+     * Unregisters the JWT access token so this client is not forwarded calls.
+     */
+    TwilioVoiceClient.prototype.unregister = function () {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            Cordova.exec(resolve, reject, _this.PLUGIN_NAME, "unregister");
+        });
     };
     /**
      * Error handler
@@ -131,7 +148,15 @@ var TwilioVoiceClient = /** @class */ (function () {
     TwilioVoiceClient.prototype.callDidDisconnect = function (fn) {
         this.delegate['oncalldiddisconnect'] = fn;
     };
+    /**
+     * Delegate fired when the twilio VoIP push notification token has been invalidated.
+     * @param fn - The callback delegate.
+     */
+    TwilioVoiceClient.prototype.didInvalidatePushToken = function (fn) {
+        this.delegate['ondidinvalidatepushtoken'] = fn;
+    };
     return TwilioVoiceClient;
 }());
 exports.TwilioVoiceClient = TwilioVoiceClient;
 ;
+//# sourceMappingURL=TwilioVoiceClient.js.map
