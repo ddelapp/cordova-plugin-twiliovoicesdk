@@ -31,6 +31,7 @@ static NSString *const kTwimlParamFrom = @"From";
 
 // Current call (can be nil)
 @property (nonatomic, strong) TVOCall *call;
+@property (nonatomic, strong) NSUUID *callUUID;
 
 // Current call invite (can be nil)
 @property (nonatomic, strong) TVOCallInvite *callInvite;
@@ -201,8 +202,7 @@ static NSString *const kTwimlParamFrom = @"From";
                                                      block:^(TVOConnectOptionsBuilder *builder) {
                                                         builder.params = @{
                                                             kTwimlParamTo:self.outgoingCallParams[@"To"],
-                                                            kTwimlParamFrom:self.outgoingCallParams[@"From"]
-                                                            
+                                                            kTwimlParamFrom:self.outgoingCallParams[@"From"]                                                            
                                                         };
                                                     }];
                 self.call = [TwilioVoice connectWithOptions:connectOptions delegate:self];
@@ -304,14 +304,14 @@ static NSString *const kTwimlParamFrom = @"From";
 }
 
 - (void) updateCall: (CDVInvokedUrlCommand*)command {
-    if(!self.call) {
-        return;
-    }
+    
+    NSDictionary *params = command.arguments[0];
+    
+    NSLog(@"Update Call %@ %@", self.callUUID, params);
 
     CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
-
     CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
-    callUpdate.localizedCallerName =
+    callUpdate.localizedCallerName = params[@"localizedCallerName"];
     callUpdate.remoteHandle = callHandle;
     callUpdate.supportsDTMF = YES;
     callUpdate.supportsHolding = YES;
@@ -319,7 +319,9 @@ static NSString *const kTwimlParamFrom = @"From";
     callUpdate.supportsUngrouping = NO;
     callUpdate.hasVideo = NO;
 
-    [self.callKitProvider reportCallWithUUID:self.call.uuid updated: callUpdate];
+    [self.callKitProvider reportCallWithUUID:self.callUUID updated: callUpdate];
+
+
 }
 
 #pragma mark PKPushRegistryDelegate methods
@@ -387,7 +389,6 @@ static NSString *const kTwimlParamFrom = @"From";
         CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
 
         CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
-        callUpdate.localizedCallerName = @"Caller Name Here!";
         callUpdate.remoteHandle = callHandle;
         callUpdate.supportsDTMF = YES;
         callUpdate.supportsHolding = YES;
@@ -553,6 +554,7 @@ static NSString *const kTwimlParamFrom = @"From";
     }
     
     self.call = nil;
+    self.callUUID = nil;
     self.callKitCompletionCallback = nil;
     [self javascriptCallback:@"oncalldiddisconnect"];
 }
@@ -762,6 +764,8 @@ static NSString *const kTwimlParamFrom = @"From";
     callUpdate.supportsGrouping = NO;
     callUpdate.supportsUngrouping = NO;
     callUpdate.hasVideo = NO;
+    
+    self.callUUID = uuid;
     
     [self.callKitProvider reportNewIncomingCallWithUUID:uuid update:callUpdate completion:^(NSError *error) {
         if (!error) {
