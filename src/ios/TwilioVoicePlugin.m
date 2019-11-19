@@ -15,12 +15,11 @@
 @import CallKit;
 @import PushKit;
 @import TwilioVoice;
-@import UserNotifications;
 
 static NSString *const kTwimlParamTo = @"To";
 static NSString *const kTwimlParamFrom = @"From";
 
-@interface TwilioVoicePlugin () <PKPushRegistryDelegate, TVOCallDelegate, TVONotificationDelegate, CXProviderDelegate>
+@interface TwilioVoicePlugin () <PKPushRegistryDelegate, TVONotificationDelegate, TVOCallDelegate, CXProviderDelegate>
 
 // Callback for the Javascript plugin delegate, used for events
 @property(nonatomic, strong) NSString *callback;
@@ -44,10 +43,6 @@ static NSString *const kTwimlParamFrom = @"From";
 
 // Outgoing call params
 @property (nonatomic, strong) NSDictionary *outgoingCallParams;
-
-// Configure whether or not to use CallKit via the plist
-// This is a variable from plugin installation (ENABLE_CALLKIT)
-@property (nonatomic, assign) BOOL enableCallKit;
 
 // Configure whether or not to mask the incoming phone number for privacy via the plist
 // This is a variable from plugin installation (MASK_INCOMING_PHONE_NUMBER)
@@ -77,17 +72,8 @@ static NSString *const kTwimlParamFrom = @"From";
         [TwilioVoice setLogLevel:TVOLogLevelOff];
     }
 
-    // read in Enable CallKit preference
-    NSString *enableCallKitPreference = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPEnableCallKit"] uppercaseString];
-    if ([enableCallKitPreference isEqualToString:@"YES"] || [enableCallKitPreference isEqualToString:@"TRUE"]) {
-        self.enableCallKit = YES;
-        self.audioDevice = [TVODefaultAudioDevice audioDevice];
-        TwilioVoice.audioDevice = self.audioDevice;
-        NSLog(@"CALL KIT HAS BEEN ENABLED");
-    } else {
-        self.enableCallKit = NO;
-        NSLog(@"CALL KIT NOT ENABLED");
-    }
+    self.audioDevice = [TVODefaultAudioDevice audioDevice];
+    TwilioVoice.audioDevice = self.audioDevice;
 
     // read in MASK_INCOMING_PHONE_NUMBER preference
     NSString *enableMaskIncomingPhoneNumberPreference = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPMaskIncomingPhoneNumber"] uppercaseString];
@@ -97,33 +83,31 @@ static NSString *const kTwimlParamFrom = @"From";
         self.maskIncomingPhoneNumber = NO;
     }
     
-    if (!self.enableCallKit) {
-        //ask for notification support
-        UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-        UNAuthorizationOptions options = UNAuthorizationOptionAlert + UNAuthorizationOptionSound;
+    
+    //ask for notification support
+//    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+//    UNAuthorizationOptions options = UNAuthorizationOptionAlert + UNAuthorizationOptionSound;
+//
+//    [center requestAuthorizationWithOptions:options
+//                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
+//                              if (!granted) {
+//                                  NSLog(@"Notifications not granted");
+//                              }
+//                          }];
 
-        [center requestAuthorizationWithOptions:options
-                              completionHandler:^(BOOL granted, NSError * _Nullable error) {
-                                  if (!granted) {
-                                      NSLog(@"Notifications not granted");
-                                  }
-                              }];
-
-        // initialize ringtone player
-        NSURL *ringtoneURL = [[NSBundle mainBundle] URLForResource:@"ringing.wav" withExtension:nil];
-        if (ringtoneURL) {
-            NSError *error = nil;
-            self.ringtonePlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:ringtoneURL error:&error];
-            if (error) {
-                NSLog(@"Error initializing ring tone player: %@",[error localizedDescription]);
-            } else {
-                //looping ring
-                self.ringtonePlayer.numberOfLoops = -1;
-                [self.ringtonePlayer prepareToPlay];
-            }
+    // initialize ringtone player
+    NSURL *ringtoneURL = [[NSBundle mainBundle] URLForResource:@"ringing.wav" withExtension:nil];
+    if (ringtoneURL) {
+        NSError *error = nil;
+        self.ringtonePlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:ringtoneURL error:&error];
+        if (error) {
+            NSLog(@"Error initializing ring tone player: %@",[error localizedDescription]);
+        } else {
+            //looping ring
+            self.ringtonePlayer.numberOfLoops = -1;
+            [self.ringtonePlayer prepareToPlay];
         }
     }
-    
 }
 
 - (void) initializeWithAccessToken:(CDVInvokedUrlCommand*)command  {
@@ -140,21 +124,19 @@ static NSString *const kTwimlParamFrom = @"From";
         self.voipPushRegistry.delegate = self;
         self.voipPushRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
         
-        if (self.enableCallKit) {
-            // initialize CallKit (based on Twilio ObjCVoiceCallKitQuickstart)
-            NSString *incomingCallAppName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPIncomingCallAppName"];
-            CXProviderConfiguration *configuration = [[CXProviderConfiguration alloc] initWithLocalizedName:incomingCallAppName];
-            configuration.maximumCallGroups = 1;
-            configuration.maximumCallsPerCallGroup = 1;
-            UIImage *callkitIcon = [UIImage imageNamed:@"logo.png"];
-            configuration.iconTemplateImageData = UIImagePNGRepresentation(callkitIcon);
-            configuration.ringtoneSound = @"traditionalring.mp3";
+        // initialize CallKit (based on Twilio ObjCVoiceCallKitQuickstart)
+        NSString *incomingCallAppName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPIncomingCallAppName"];
+        CXProviderConfiguration *configuration = [[CXProviderConfiguration alloc] initWithLocalizedName:incomingCallAppName];
+        configuration.maximumCallGroups = 1;
+        configuration.maximumCallsPerCallGroup = 1;
+        UIImage *callkitIcon = [UIImage imageNamed:@"logo.png"];
+        configuration.iconTemplateImageData = UIImagePNGRepresentation(callkitIcon);
+        configuration.ringtoneSound = @"traditionalring.mp3";
+        
+        self.callKitProvider = [[CXProvider alloc] initWithConfiguration:configuration];
+        [self.callKitProvider setDelegate:self queue:nil];
             
-            self.callKitProvider = [[CXProvider alloc] initWithConfiguration:configuration];
-            [self.callKitProvider setDelegate:self queue:nil];
-            
-            self.callKitCallController = [[CXCallController alloc] init];
-        }
+        self.callKitCallController = [[CXCallController alloc] init];
 
         [self javascriptCallback:@"onclientinitialized"];
     }
@@ -164,21 +146,45 @@ static NSString *const kTwimlParamFrom = @"From";
 - (void) unregister:(CDVInvokedUrlCommand*)command  {
     NSLog(@"Unregister access token");
     
+    // Optional arguments should be brought in to unregister: accessToken and deviceToken.
+    // These should superceed the self.accessToken and self.pushDeviceToken.
+    // This is because in the event that the access token has expired, you cannot
+    // Unregister the device token, so in the event that the pushRegistry calls
+    // ondidinvalidatepushtoken, the unregister should be called, supplying a new
+    // accessToken and the deviceToken.
+    
     // retain this command as the callback to use for raising Twilio events
     self.callback = command.callbackId;
-    if (self.accessToken) {
-        [TwilioVoice unregisterWithAccessToken:self.accessToken deviceToken:self.pushDeviceToken completion:^(NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"Error unregistering Voice Client for VOIP Push: %@", [error localizedDescription]);
-            } else {
-                NSLog(@"Unregistered Voice Client for VOIP Push");
-            }
-            [self javascriptCallback:@"onunregistered"];
-        }];
-        
-        // Deactivate any calls.
-        [self.callKitProvider invalidate];
+    
+    NSString* accessToken = self.accessToken;
+    NSString* deviceToken = self.pushDeviceToken;
+    
+    if(command.arguments.count > 0) {
+        NSDictionary* args = command.arguments[0];
+        NSLog(@"Params for unregister %@", args);
+        if([args objectForKey:@"accessToken"] == nil) {
+            accessToken = args[@"accessToken"];
+        }
+        if([args objectForKey:@"deviceToken"] == nil) {
+            accessToken = args[@"deviceToken"];
+        }
     }
+    
+    
+    [TwilioVoice unregisterWithAccessToken: accessToken
+                               deviceToken: deviceToken
+                                completion: ^(NSError * _Nullable error) {
+        if (error) {
+            NSLog(@"Error unregistering Voice Client for VOIP Push: %@", [error localizedDescription]);
+        } else {
+            NSLog(@"Unregistered Voice Client for VOIP Push");
+        }
+        self.pushDeviceToken = nil;
+        [self javascriptCallback:@"onunregistered"];
+    }];
+    
+    // Deactivate any calls.
+    [self.callKitProvider invalidate];
 }
 
 - (void) call:(CDVInvokedUrlCommand*)command {
@@ -191,23 +197,9 @@ static NSString *const kTwimlParamFrom = @"From";
         if (self.call && self.call.state == TVOCallStateConnected) {
             [self performEndCallActionWithUUID:self.call.uuid];
         } else {
-            if (self.enableCallKit) {
-                NSUUID *uuid = [NSUUID UUID];
-                NSString *incomingCallAppName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPIncomingCallAppName"];
-                [self performStartCallActionWithUUID:uuid handle:incomingCallAppName];
-            } else {
-                NSLog(@"Making call to with params %@", self.outgoingCallParams);
-                TVOConnectOptions *connectOptions = [TVOConnectOptions
-                                                     optionsWithAccessToken:self.accessToken
-                                                     block:^(TVOConnectOptionsBuilder *builder) {
-                                                        builder.params = @{
-                                                            kTwimlParamTo:self.outgoingCallParams[@"To"],
-                                                            kTwimlParamFrom:self.outgoingCallParams[@"From"]                                                            
-                                                        };
-                                                    }];
-                self.call = [TwilioVoice connectWithOptions:connectOptions delegate:self];
-                self.outgoingCallParams = nil;
-            }
+            self.callUUID = [NSUUID UUID];
+            NSString *incomingCallAppName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPIncomingCallAppName"];
+            [self performStartCallActionWithUUID:self.callUUID handle:incomingCallAppName withName: self.outgoingCallParams[@"displayName"]];
         }
     }
 }
@@ -309,19 +301,33 @@ static NSString *const kTwimlParamFrom = @"From";
     
     NSLog(@"Update Call %@ %@", self.callUUID, params);
 
-    CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
     CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
+    callUpdate.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];;
+    
     callUpdate.localizedCallerName = params[@"localizedCallerName"];
-    callUpdate.remoteHandle = callHandle;
-    callUpdate.supportsDTMF = YES;
-    callUpdate.supportsHolding = YES;
-    callUpdate.supportsGrouping = NO;
-    callUpdate.supportsUngrouping = NO;
-    callUpdate.hasVideo = NO;
+    callUpdate.supportsDTMF = [params[@"supportsDtmf"] isEqual: @"true"];
+    callUpdate.supportsHolding = [params[@"supportsHolding"] isEqual: @"true"];
+    callUpdate.supportsGrouping = [params[@"supportsGrouping"] isEqual: @"true"];
+    callUpdate.supportsUngrouping = [params[@"supportsUngrouping"] isEqual: @"true"];
+    callUpdate.hasVideo = [params[@"hasVideo"] isEqual: @"true"];
 
     [self.callKitProvider reportCallWithUUID:self.callUUID updated: callUpdate];
 
 
+}
+
+- (void) reauthenticate: (CDVInvokedUrlCommand*)command {
+    // Called from Javascript code to reauthenticate
+    NSLog(@"Updating push device token for VOIP: %@",self.pushDeviceToken);
+    [TwilioVoice registerWithAccessToken:self.accessToken
+                             deviceToken:self.pushDeviceToken
+                              completion:^(NSError * _Nullable error) {
+        if (error) {
+            NSLog(@"Error registering Voice Client for VOIP Push: %@", [error localizedDescription]);
+        } else {
+            NSLog(@"Registered Voice Client for VOIP Push");
+        }
+    }];
 }
 
 #pragma mark PKPushRegistryDelegate methods
@@ -334,45 +340,28 @@ static NSString *const kTwimlParamFrom = @"From";
                                         ntohl(tokenBytes[3]), ntohl(tokenBytes[4]), ntohl(tokenBytes[5]),
                                         ntohl(tokenBytes[6]), ntohl(tokenBytes[7])];
 
-        NSLog(@"Updating push device token for VOIP: %@",self.pushDeviceToken);
-        [TwilioVoice registerWithAccessToken:self.accessToken
-                                                  deviceToken:self.pushDeviceToken completion:^(NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"Error registering Voice Client for VOIP Push: %@", [error localizedDescription]);
-            } else {
-                NSLog(@"Registered Voice Client for VOIP Push");
-            }
+        // the onreauthenticate should fire the reauthenticate function in js supplying a new accessToken.
+        [self javascriptCallback:@"onreauthenticate" withArguments:@{
+            @"reason": @"updatedPushCredentials",
+            @"deviceToken": self.pushDeviceToken
         }];
     }
 }
+
 
 - (void)pushRegistry:(PKPushRegistry *)registry didInvalidatePushTokenForType:(PKPushType)type {
     if ([type isEqualToString:PKPushTypeVoIP]) {
-        NSLog(@"Invalidating push device token for VOIP: %@",self.pushDeviceToken);
-        [TwilioVoice unregisterWithAccessToken:self.accessToken
-                                   deviceToken:self.pushDeviceToken
-                                    completion:^(NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"Error unregistering Voice Client for VOIP Push: %@", [error localizedDescription]);
-            } else {
-                NSLog(@"Unegistered Voice Client for VOIP Push");
-            }
-                        
-            self.pushDeviceToken = nil;
-        }];
         
-        [self javascriptCallback:@"ondidinvalidatepushtoken"];
+        // the ondidinvalidatepushtoken should fire the reauthenticate function in js supplying a new accessToken.
+        [self javascriptCallback:@"ondidinvalidatepushtoken" withArguments:@{
+            @"reason": @"invalidatedPushToken",
+            @"deviceToken": self.pushDeviceToken
+        }];
     }
 }
 
-//- (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type {
-//    if ([type isEqualToString:PKPushTypeVoIP]) {
-//        NSLog(@"Received Incoming Push Payload for VOIP: %@",payload.dictionaryPayload);
-//        [TwilioVoice handleNotification:payload.dictionaryPayload delegate:self delegateQueue:nil];
-//    }
-//}
-
-- (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion {
+- (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload
+             forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion {
     
     NSLog(@"pushRegistry:didReceiveIncomingPushWithPayload:forType:withCompletionHandler:");
     
@@ -402,14 +391,12 @@ static NSString *const kTwimlParamFrom = @"From";
             NSLog(@"Call Kit Provider reportNewIncomingCallWithUUID.");
         }];
 
-        dispatch_async(dispatch_get_main_queue(), ^{
-            CXEndCallAction *endCallAction = [[CXEndCallAction alloc] initWithCallUUID:uuid];
-            CXTransaction *transaction = [[CXTransaction alloc] initWithAction:endCallAction];
+        CXEndCallAction *endCallAction = [[CXEndCallAction alloc] initWithCallUUID:uuid];
+        CXTransaction *transaction = [[CXTransaction alloc] initWithAction:endCallAction];
 
-            [self.callKitCallController requestTransaction:transaction completion:^(NSError *error) {
-                NSLog(@"Call Kit Provider requestTransaction.");
-            }];
-        });
+        [self.callKitCallController requestTransaction:transaction completion:^(NSError *error) {
+            NSLog(@"Call Kit Provider requestTransaction.");
+        }];
 
         return;
     }
@@ -428,66 +415,74 @@ static NSString *const kTwimlParamFrom = @"From";
     }
 }
 
+- (void)dealloc {
+    if (self.callKitProvider) {
+        [self.callKitProvider invalidate];
+    }
+}
+
 #pragma mark TVONotificationDelegate
 - (void)callInviteReceived:(TVOCallInvite *)callInvite {
-    [self handleCallInviteReceived:callInvite];
+    
+    
+    /**
+     * Calling `[TwilioVoice handleNotification:delegate:]` will synchronously process your notification payload and
+     * provide you a `TVOCallInvite` object. Report the incoming call to CallKit upon receiving this callback.
+     */
+    
+    NSLog(@"Call Invite Received: %@", callInvite.uuid);
+    
+    if (self.callInvite) {
+        NSLog(@"A CallInvite is already in progress. Ignoring the incoming CallInvite from %@", callInvite.from);
+        if ([[NSProcessInfo processInfo] operatingSystemVersion].majorVersion < 13) {
+            [self incomingPushHandled];
+        }
+        return;
+    } else if (self.call) {
+        NSLog(@"Already an active call. Ignoring the incoming CallInvite from %@", callInvite.from);
+        if ([[NSProcessInfo processInfo] operatingSystemVersion].majorVersion < 13) {
+            [self incomingPushHandled];
+        }
+        return;
+    }
+
+    self.callInvite = callInvite;
+    NSDictionary *callInviteProperties = @{
+        @"from":callInvite.from,
+        @"to":callInvite.to,
+        @"callSid":callInvite.callSid
+    };
+    
+    NSString *from = @"Voice Bot";
+    if (callInvite.from) {
+        from = [callInvite.from stringByReplacingOccurrencesOfString:@"client:" withString:@""];
+    }
+    
+    [self reportIncomingCallFrom:from withUUID:callInvite.uuid];
+    [self javascriptCallback:@"oncallinvitereceived" withArguments:callInviteProperties];
 }
 
 
 - (void)cancelledCallInviteReceived:(nonnull TVOCancelledCallInvite *)cancelledCallInvite error:(nonnull NSError *)error {
-    NSLog(@"cancelledCallInviteReceived:");
     
-    [self incomingPushHandled];
+    /**
+     * The SDK may call `[TVONotificationDelegate callInviteReceived:error:]` asynchronously on the dispatch queue
+     * with a `TVOCancelledCallInvite` if the caller hangs up or the client encounters any other error before the called
+     * party could answer or reject the call.
+     */
+    
+    NSLog(@"cancelledCallInviteReceived:");
     
     if (!self.callInvite ||
         ![self.callInvite.callSid isEqualToString:cancelledCallInvite.callSid]) {
         NSLog(@"No matching pending CallInvite. Ignoring the Cancelled CallInvite");
         return;
     }
-    if (self.enableCallKit) {
-        [self performEndCallActionWithUUID:self.callInvite.uuid];
-    } else {
-        [self cancelNotification];
-        //pause ringtone
-        [self.ringtonePlayer pause];
-    }
-    
+
+    [self performEndCallActionWithUUID:self.callInvite.uuid];
+
     self.callInvite = nil;
-    [self incomingPushHandled];
     [self javascriptCallback:@"oncallinvitecanceled"];
-}
-
-- (void)handleCallInviteReceived:(TVOCallInvite *)callInvite {
-    NSLog(@"Call Invite Received: %@", callInvite.uuid);
-    // Two simlutaneous callInvites or calls are not supported by Twilio and cause an error
-    // if the user attempts to answer the second call invite through CallKit.
-    // Rather than surface the second invite, just reject it which will most likely
-    // result in the second invite going to voicemail
-    if (self.callInvite == nil && self.call == nil) {
-        self.callInvite = callInvite;
-        NSDictionary *callInviteProperties = @{
-                                               @"from":callInvite.from,
-                                               @"to":callInvite.to,
-                                               @"callSid":callInvite.callSid
-                                               };
-        if (self.enableCallKit) {
-            [self reportIncomingCallFrom:(self.maskIncomingPhoneNumber ? @"Unknown" : callInvite.from) withUUID:callInvite.uuid];
-        } else {
-            [self showNotification:(self.maskIncomingPhoneNumber ? @"Unknown" : callInvite.from)];
-            //play ringtone
-            [self.ringtonePlayer play];
-        }
-
-        [self javascriptCallback:@"oncallinvitereceived" withArguments:callInviteProperties];
-    } else {
-        [self incomingPushHandled];
-        NSLog(@"Call Invite Received During Call. Ignoring: %@", callInvite.uuid);
-    }
-}
-
-- (void)notificationError:(NSError *)error {
-    NSLog(@"Twilio Voice Notification Error: %@", [error localizedDescription]);
-    [self javascriptErrorback:error];
 }
 
 #pragma mark TVOCallDelegate
@@ -496,16 +491,9 @@ static NSString *const kTwimlParamFrom = @"From";
     NSLog(@"Call Did Connect: %@", [call description]);
     self.call = call;
     
-    if (!self.enableCallKit) {
-        [self cancelNotification];
-        if ([self.ringtonePlayer isPlaying]) {
-            //pause ringtone
-            [self.ringtonePlayer pause];
-        }
-    } else {
-        self.callKitCompletionCallback(YES);
-        self.callKitCompletionCallback = nil;
-    }
+    self.callKitCompletionCallback(YES);
+    self.callKitCompletionCallback = nil;
+
     
     NSMutableDictionary *callProperties = [NSMutableDictionary new];
     if (call.from) {
@@ -527,9 +515,9 @@ static NSString *const kTwimlParamFrom = @"From";
 
 - (void)call:(TVOCall *)call didFailToConnectWithError:(NSError *)error {
     NSLog(@"Call Did Fail with Error: %@, %@", [call description], [error localizedDescription]);
-    if (self.enableCallKit) {
-        self.callKitCompletionCallback(NO);
-    }
+
+    self.callKitCompletionCallback(NO);
+
     [self callDisconnected:call];
     [self javascriptErrorback:error];
 }
@@ -549,9 +537,7 @@ static NSString *const kTwimlParamFrom = @"From";
     NSLog(@"Call Did Disconnect: %@", [call description]);
     
     // Call Kit Integration
-    if (self.enableCallKit) {
-        [self performEndCallActionWithUUID:call.uuid];
-    }
+    [self performEndCallActionWithUUID:call.uuid];
     
     self.call = nil;
     self.callUUID = nil;
@@ -593,37 +579,7 @@ static NSString *const kTwimlParamFrom = @"From";
     NSDictionary *object    = [NSDictionary dictionaryWithObjectsAndKeys:[error localizedDescription], @"message", nil];
     CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:object];
     [result setKeepCallbackAsBool:YES];
-    
     [self.commandDelegate sendPluginResult:result callbackId:self.callback];
-}
-
-#pragma mark - Local Notification methods used if CallKit isn't enabled
-
--(void) showNotification:(NSString*)alertBody {
-    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-
-    [center removeAllPendingNotificationRequests];
-
-    
-    UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.sound = [UNNotificationSound soundNamed:@"ringing.wav"];
-    content.title = @"Answer";
-    content.body = alertBody;
-    
-
-    UNNotificationRequest *request = [UNNotificationRequest
-                                      requestWithIdentifier:@"IncomingCall" content:content trigger:nil];
-    
-    [center addNotificationRequest:request withCompletionHandler:^(NSError * _Nullable error) {
-        if (error != nil) {
-            NSLog(@"Error adding local notification for incoming call: %@", error.localizedDescription);
-        }
-    }];
-
-}
-
--(void) cancelNotification {
-    [[UNUserNotificationCenter currentNotificationCenter] removeAllDeliveredNotifications];
 }
 
 #pragma mark - CXProviderDelegate - based on Twilio Voice with CallKit Quickstart ObjC
@@ -727,22 +683,24 @@ static NSString *const kTwimlParamFrom = @"From";
 }
 
 #pragma mark - CallKit Actions
-- (void)performStartCallActionWithUUID:(NSUUID *)uuid handle:(NSString *)handle {
+- (void)performStartCallActionWithUUID:(NSUUID *)uuid handle:(NSString *)handle withName:(NSString *)localizedCallerName {
     if (uuid == nil || handle == nil) {
         return;
     }
     
+    //dispatch_async(dispatch_get_main_queue(), ^{
     CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:handle];
     CXStartCallAction *startCallAction = [[CXStartCallAction alloc] initWithCallUUID:uuid handle:callHandle];
     CXTransaction *transaction = [[CXTransaction alloc] initWithAction:startCallAction];
-    
+
     [self.callKitCallController requestTransaction:transaction completion:^(NSError *error) {
         if (error) {
             NSLog(@"StartCallAction transaction request failed: %@", [error localizedDescription]);
         } else {
             NSLog(@"StartCallAction transaction request successful");
-            
+
             CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
+            callUpdate.localizedCallerName = localizedCallerName;
             callUpdate.remoteHandle = callHandle;
             callUpdate.supportsDTMF = YES;
             callUpdate.supportsHolding = YES;
@@ -752,20 +710,23 @@ static NSString *const kTwimlParamFrom = @"From";
             [self.callKitProvider reportCallWithUUID:uuid updated:callUpdate];
         }
     }];
+    //});
 }
 
 - (void)reportIncomingCallFrom:(NSString *) from withUUID:(NSUUID *)uuid {
-    CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:from];
     
+    self.callUUID = uuid;
+    
+    CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:from];
+
     CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
     callUpdate.remoteHandle = callHandle;
     callUpdate.supportsDTMF = YES;
-    callUpdate.supportsHolding = YES;
+    callUpdate.supportsHolding = NO;
     callUpdate.supportsGrouping = NO;
     callUpdate.supportsUngrouping = NO;
     callUpdate.hasVideo = NO;
     
-    self.callUUID = uuid;
     
     [self.callKitProvider reportNewIncomingCallWithUUID:uuid update:callUpdate completion:^(NSError *error) {
         if (!error) {
@@ -775,12 +736,14 @@ static NSString *const kTwimlParamFrom = @"From";
             NSLog(@"Failed to report incoming call successfully: %@.", [error localizedDescription]);
         }
     }];
+    
+    
 }
 
 - (void)performEndCallActionWithUUID:(NSUUID *)uuid {
     CXEndCallAction *endCallAction = [[CXEndCallAction alloc] initWithCallUUID:uuid];
     CXTransaction *transaction = [[CXTransaction alloc] initWithAction:endCallAction];
-    
+
     [self.callKitCallController requestTransaction:transaction completion:^(NSError *error) {
         if (error) {
             NSLog(@"EndCallAction transaction request failed: %@", [error localizedDescription]);
@@ -798,7 +761,7 @@ static NSString *const kTwimlParamFrom = @"From";
     TwilioVoicePlugin __weak *weakSelf = self;
     TVOConnectOptions *connectOptions = [TVOConnectOptions optionsWithAccessToken:self.accessToken block:^(TVOConnectOptionsBuilder *builder) {
         TwilioVoicePlugin __strong *strongSelf = weakSelf;
-        builder.params = @{kTwimlParamTo: strongSelf.outgoingCallParams[@"To"]};
+        builder.params = @{kTwimlParamTo: strongSelf.outgoingCallParams[@"to"], @"Special": @"Param"};
         builder.uuid = uuid;
     }];
     self.call = [TwilioVoice connectWithOptions:connectOptions delegate:self];
@@ -822,7 +785,10 @@ static NSString *const kTwimlParamFrom = @"From";
     }
     
     self.callInvite = nil;
-    [self incomingPushHandled];
+    
+    if ([[NSProcessInfo processInfo] operatingSystemVersion].majorVersion < 13) {
+        [self incomingPushHandled];
+    }
 }
 
 @end

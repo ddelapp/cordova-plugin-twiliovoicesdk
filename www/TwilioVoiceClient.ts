@@ -1,6 +1,7 @@
 import { CallUpdate } from "./types/CallUpdate";
 import { ICallInviteReceived } from "./types/ICallInviteReceived";
 import { ICallDidConnect } from "./types/ICallDidConnect";
+import { IDidInvalidatePushToken } from './types/IDidInvalidatePushToken';
 
 /* global Cordova */
 declare var Cordova: any;
@@ -22,7 +23,7 @@ export class TwilioVoiceClient {
     * @param params - Mimics the TVOConnectOptions ["To", "From"]
     */
     public call(accessToken: string, params: any) : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "call", [accessToken, params]);
+        this.cordovaExec(null, null, "call", [accessToken, params]);
     }
 
    /**
@@ -32,7 +33,7 @@ export class TwilioVoiceClient {
     * ‘*’, ‘#’, and ‘w’. Each ‘w’ will cause a 500 ms pause between digits sent.
     */
     public sendDigits(digits: string) : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "sendDigits", [digits]);
+        this.cordovaExec(null, null, "sendDigits", [digits]);
     }
 
     /**
@@ -40,35 +41,35 @@ export class TwilioVoiceClient {
      * @param call Updated package of the call's abilities.
      */
     public updateCall(call: CallUpdate) : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "updateCall", [
-            call.localizedCallerName,
-            call.supportsHolding,
-            call.supportsGrouping,
-            call.supportsUngrouping,
-            call.supportsDtmf,
-            call.hasVideo
-        ]);
+        this.cordovaExec(null, null, "updateCall", [{
+            "localizedCallerName": call.localizedCallerName,
+            "supportsHolding": call.supportsHolding,
+            "supportsGrouping": call.supportsGrouping,
+            "supportsUngrouping": call.supportsUngrouping,
+            "supportsDtmf": call.supportsDtmf,
+            "hasVideo": call.hasVideo
+        }]);
     }
 
    /**
     * Disconnects the Call.
     */
     public disconnect() : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "disconnect", null);
+        this.cordovaExec(null, null, "disconnect", null);
     }
 
    /**
     * Rejects the incoming Call Invite.
     */
     public rejectCallInvite() : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "rejectCallInvite", null);
+        this.cordovaExec(null, null, "rejectCallInvite", null);
     }
 
    /**
     * Accepts the incoming Call Invite.
     */
     public acceptCallInvite() : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "acceptCallInvite", null);
+        this.cordovaExec(null, null, "acceptCallInvite", null);
     }
 
    /**
@@ -78,28 +79,28 @@ export class TwilioVoiceClient {
     */
     public setSpeaker(mode: string) : void {
         // "on" or "off"
-        Cordova.exec(null, null, this.PLUGIN_NAME, "setSpeaker", [mode]);
+        this.cordovaExec(null, null, "setSpeaker", [mode]);
     }
 
    /**
     * Mute the Call.
     */
     public muteCall() : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "muteCall", null);
+        this.cordovaExec(null, null, "muteCall", null);
     }
 
    /**
     * Unmute the Call.
     */
     public unmuteCall() : void {
-        Cordova.exec(null, null, this.PLUGIN_NAME, "unmuteCall", null);
+        this.cordovaExec(null, null, "unmuteCall", null);
     }
 
    /**
     * Returns a call delegate with a call mute or unmute. 
     */
     public isCallMuted(fn: (isMuted: boolean) => boolean) : void {
-        Cordova.exec(fn, null, this.PLUGIN_NAME, "isCallMuted", null);
+        this.cordovaExec(fn, null, "isCallMuted", null);
     }
 
    /**
@@ -119,15 +120,23 @@ export class TwilioVoiceClient {
             if (this.delegate[callback['callback']]) this.delegate[callback['callback']](argument);
         }
         
-        Cordova.exec(success, error, this.PLUGIN_NAME, "initializeWithAccessToken", [accessToken]);
+        this.cordovaExec(success, error, "initializeWithAccessToken", [accessToken]);
     }
 
     /**
-     * Unregisters the JWT access token so this client is not forwarded calls.
+     * Unregisters the twilio client from receiving inbound calls.
+     * @param accessToken Optional: Provide a valid Twilio JWT.  If this is not supplied the existing
+     * token is used, but may have already expired and prevent the unregister from occuring.
+     * @param deviceToken Optional: In the event that the DidInvalidatePushToken was trigger, supply the 
+     * deviceToken provided from that event, and a new accessToken to unregister this client, then reinit.
      */
-    public unregister() : Promise<string> {
+    public unregister(accessToken?: string, deviceToken?: string) : Promise<string> {
         return new Promise<string>((resolve, reject) => {
-            Cordova.exec(resolve, reject, this.PLUGIN_NAME, "unregister")
+            var args =[];
+            if(accessToken) args['accessToken'] = accessToken;
+            if(deviceToken) args['deviceToken'] = deviceToken;
+
+            this.cordovaExec(resolve, reject, "unregister", args)
         });
     }
 
@@ -159,7 +168,7 @@ export class TwilioVoiceClient {
     * Delegate fired when an invite has been canceled.
     * @param fn - The callback delegate.
     */
-    callInviteCanceled(fn: (result: any) => any) : void {
+    callInviteCanceled(fn: () => any) : void {
         this.delegate['oncallinvitecanceled'] = fn;
     }
 
@@ -183,7 +192,23 @@ export class TwilioVoiceClient {
       * Delegate fired when the twilio VoIP push notification token has been invalidated.
       * @param fn - The callback delegate.
       */
-      public didInvalidatePushToken(fn: (result: any) => any) : void {
+      public didInvalidatePushToken(fn: (result: IDidInvalidatePushToken) => any) : void {
           this.delegate['ondidinvalidatepushtoken'] = fn;
+      }
+
+      private cordovaExec(resolve: any, reject: any, method: string, args: any)
+      {
+        if(!Cordova) {
+            console.warn('Native: tried calling ' +
+            this.PLUGIN_NAME +
+            '.' +
+            method +
+            ', but Cordova is not available. Make sure to include cordova.js or run in a device/simulator');
+            return;
+        }
+
+        // Execute the Cordova command
+        Cordova.exec(resolve, reject, this.PLUGIN_NAME, method, args);
+
       }
 };

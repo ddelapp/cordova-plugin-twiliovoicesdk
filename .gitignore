@@ -9,3 +9,6 @@ dist/
 src/@ionic-native/plugins/**/ngx
 *.d.ts
 injectable-classes.json
+*.js.map
+types/*.js
+www/types/*.js
