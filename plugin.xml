@@ -2,13 +2,13 @@
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-twiliovoicesdk"
-    version="3.0.0">
+    version="5.1.0">
 
     <name>TwilioVoice</name>
     <description>Use the Twilio Voice SDK for iOS or Android with Cordova/PhoneGap. Successor to Twilio Client Plugin</description>
     <author>Jeff Linwood/Stevie Graham/Lyle Pratt/Devin DeLapp</author>
     <license>MIT</license>
-    <js-module name="CordovaCall" src="www/TwilioVoicePlugin.js">
+    <js-module name="CordovaCall" src="www/TwilioVoiceClient.js">
         <clobbers target="TwilioPlugin.TwilioVoiceClient" />   
     </js-module>
 
@@ -20,9 +20,6 @@
 
     <!-- Necessary to set app name for incoming call notifications on Android and CallKit on iOS -->
     <preference name="INCOMING_CALL_APP_NAME" default=""/>
-
-    <!-- Necessary to enable CallKit on iOS -->
-    <preference name="ENABLE_CALL_KIT" default="false"/>
 
     <!-- Option to mask the incoming phone number for privacy -->
     <preference name="MASK_INCOMING_PHONE_NUMBER" default="false"/>
@@ -122,11 +119,6 @@
           <string>$INCOMING_CALL_APP_NAME</string>
         </config-file>
         
-        <!-- Add Enable CallKit Preference to plist -->
-        <config-file target="*-Info.plist" parent="TVPEnableCallKit">
-          <string>$ENABLE_CALL_KIT</string>
-        </config-file>
-        
         <!-- Add Mask Incoming Phone Number Preference to plist -->
         <config-file target="*-Info.plist" parent="TVPMaskIncomingPhoneNumber">
           <string>$MASK_INCOMING_PHONE_NUMBER</string>
@@ -154,7 +146,7 @@
                 <source url="https://github.com/CocoaPods/Specs.git"/>
             </config>
             <pods use-frameworks="true">
-                <pod name="TwilioVoice" spec="~> 5.0" />
+                <pod name="TwilioVoice" spec="~> 5.1.0" />
             </pods>
         </podspec>
 

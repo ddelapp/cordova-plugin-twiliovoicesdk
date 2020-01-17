@@ -3,7 +3,7 @@
       "outDir": "./www",
       "target": "es5",
       "noImplicitAny": false,
-      "sourceMap": true,
+      "sourceMap": false,
       "allowSyntheticDefaultImports": true,
       "lib": ["es5", "es2015", "dom", "scripthost"]
     },

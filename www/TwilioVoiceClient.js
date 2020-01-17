@@ -31,14 +31,14 @@ var TwilioVoiceClient = /** @class */ (function () {
      * @param call Updated package of the call's abilities.
      */
     TwilioVoiceClient.prototype.updateCall = function (call) {
-        this.cordovaExec(null, null, "updateCall", [
-            call.localizedCallerName,
-            call.supportsHolding,
-            call.supportsGrouping,
-            call.supportsUngrouping,
-            call.supportsDtmf,
-            call.hasVideo
-        ]);
+        this.cordovaExec(null, null, "updateCall", [{
+                "localizedCallerName": call.localizedCallerName,
+                "supportsHolding": call.supportsHolding,
+                "supportsGrouping": call.supportsGrouping,
+                "supportsUngrouping": call.supportsUngrouping,
+                "supportsDtmf": call.supportsDtmf,
+                "hasVideo": call.hasVideo
+            }]);
     };
     /**
      * Disconnects the Call.
@@ -87,10 +87,8 @@ var TwilioVoiceClient = /** @class */ (function () {
     };
     /**
      * Initializes the plugin to send and receive calls.
-     *
-     * @param accessToken - A JWT access token which will be used to identify this phone number.
      */
-    TwilioVoiceClient.prototype.initialize = function (accessToken) {
+    TwilioVoiceClient.prototype.initialize = function () {
         var _this = this;
         var error = function (error) {
             //TODO: Handle errors here
@@ -102,23 +100,28 @@ var TwilioVoiceClient = /** @class */ (function () {
             if (_this.delegate[callback['callback']])
                 _this.delegate[callback['callback']](argument);
         };
-        this.cordovaExec(success, error, "initializeWithAccessToken", [accessToken]);
+        this.cordovaExec(success, error, "initialize", null);
+    };
+    /**
+     * After the plugin has been initialized, Register this client with Twilio using an access token.
+     * This should be called when onReauthenticateRequired is fired.
+     *
+     * @param accessToken - A JWT access token which will be used to identify this phone number.
+     */
+    TwilioVoiceClient.prototype.registerWithAccessToken = function (accessToken) {
+        this.cordovaExec(null, null, "registerWithAccessToken", [accessToken]);
     };
     /**
      * Unregisters the twilio client from receiving inbound calls.
      * @param accessToken Optional: Provide a valid Twilio JWT.  If this is not supplied the existing
      * token is used, but may have already expired and prevent the unregister from occuring.
-     * @param deviceToken Optional: In the event that the DidInvalidatePushToken was trigger, supply the
-     * deviceToken provided from that event, and a new accessToken to unregister this client, then reinit.
      */
-    TwilioVoiceClient.prototype.unregister = function (accessToken, deviceToken) {
+    TwilioVoiceClient.prototype.unregister = function (accessToken) {
         var _this = this;
         return new Promise(function (resolve, reject) {
             var args = [];
             if (accessToken)
                 args['accessToken'] = accessToken;
-            if (deviceToken)
-                args['deviceToken'] = deviceToken;
             _this.cordovaExec(resolve, reject, "unregister", args);
         });
     };
@@ -126,53 +129,60 @@ var TwilioVoiceClient = /** @class */ (function () {
      * Error handler
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.error = function (fn) {
+    TwilioVoiceClient.prototype.onError = function (fn) {
         this.delegate['onerror'] = fn;
     };
     /**
      * Delegate fired when the Twilio client has been initialized.
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.clientInitialized = function (fn) {
+    TwilioVoiceClient.prototype.onClientInitialized = function (fn) {
         this.delegate['onclientinitialized'] = fn;
     };
     /**
      * Delegate fired when a call invite is received.
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.callInviteReceived = function (fn) {
+    TwilioVoiceClient.prototype.onCallInviteReceived = function (fn) {
         this.delegate['oncallinvitereceived'] = fn;
     };
     /**
      * Delegate fired when an invite has been canceled.
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.callInviteCanceled = function (fn) {
+    TwilioVoiceClient.prototype.onCallInviteCanceled = function (fn) {
         this.delegate['oncallinvitecanceled'] = fn;
     };
     /**
      * Delegate fired when a call connects.
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.callDidConnect = function (fn) {
+    TwilioVoiceClient.prototype.onCallDidConnect = function (fn) {
         this.delegate['oncalldidconnect'] = fn;
     };
     /**
      * Delegate fired when a call disconnects.
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.callDidDisconnect = function (fn) {
+    TwilioVoiceClient.prototype.onCallDidDisconnect = function (fn) {
         this.delegate['oncalldiddisconnect'] = fn;
     };
     /**
      * Delegate fired when the twilio VoIP push notification token has been invalidated.
      * @param fn - The callback delegate.
      */
-    TwilioVoiceClient.prototype.didInvalidatePushToken = function (fn) {
+    TwilioVoiceClient.prototype.onDidInvalidatePushToken = function (fn) {
         this.delegate['ondidinvalidatepushtoken'] = fn;
     };
+    /**
+     * Delegate fired when the twilio VoIP push notification token been updated.
+     * @param fn - The callback delegate.
+     */
+    TwilioVoiceClient.prototype.onAuthenticateRequired = function (fn) {
+        this.delegate['onauthenticaterequired'] = fn;
+    };
     TwilioVoiceClient.prototype.cordovaExec = function (resolve, reject, method, args) {
-        if (!Cordova) {
+        if (typeof Cordova === 'undefined') {
             console.warn('Native: tried calling ' +
                 this.PLUGIN_NAME +
                 '.' +
@@ -187,4 +197,3 @@ var TwilioVoiceClient = /** @class */ (function () {
 }());
 exports.TwilioVoiceClient = TwilioVoiceClient;
 ;
-//# sourceMappingURL=TwilioVoiceClient.js.map

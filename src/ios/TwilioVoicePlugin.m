@@ -85,15 +85,15 @@ static NSString *const kTwimlParamFrom = @"From";
     
     
     //ask for notification support
-//    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-//    UNAuthorizationOptions options = UNAuthorizationOptionAlert + UNAuthorizationOptionSound;
-//
-//    [center requestAuthorizationWithOptions:options
-//                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
-//                              if (!granted) {
-//                                  NSLog(@"Notifications not granted");
-//                              }
-//                          }];
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    UNAuthorizationOptions options = UNAuthorizationOptionAlert + UNAuthorizationOptionSound;
+
+    [center requestAuthorizationWithOptions:options
+                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
+                              if (!granted) {
+                                  NSLog(@"Notifications not granted");
+                              }
+                          }];
 
     // initialize ringtone player
     NSURL *ringtoneURL = [[NSBundle mainBundle] URLForResource:@"ringing.wav" withExtension:nil];
@@ -110,36 +110,32 @@ static NSString *const kTwimlParamFrom = @"From";
     }
 }
 
-- (void) initializeWithAccessToken:(CDVInvokedUrlCommand*)command  {
-    NSLog(@"Initializing with an access token");
+- (void) initialize:(CDVInvokedUrlCommand*)command  {
+    NSLog(@"TwilioVoicePlugin - Initialize");
     
     // retain this command as the callback to use for raising Twilio events
     self.callback = command.callbackId;
     
-    self.accessToken = [command.arguments objectAtIndex:0];
-    if (self.accessToken) {
+    // initialize VOIP Push Registry
+    self.voipPushRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
+    self.voipPushRegistry.delegate = self;
+    self.voipPushRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
+    
+    // initialize CallKit (based on Twilio ObjCVoiceCallKitQuickstart)
+    NSString *incomingCallAppName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPIncomingCallAppName"];
+    CXProviderConfiguration *configuration = [[CXProviderConfiguration alloc] initWithLocalizedName:incomingCallAppName];
+    configuration.maximumCallGroups = 1;
+    configuration.maximumCallsPerCallGroup = 1;
+    UIImage *callkitIcon = [UIImage imageNamed:@"logo.png"];
+    configuration.iconTemplateImageData = UIImagePNGRepresentation(callkitIcon);
+    configuration.ringtoneSound = @"traditionalring.mp3";
+    
+    self.callKitProvider = [[CXProvider alloc] initWithConfiguration:configuration];
+    [self.callKitProvider setDelegate:self queue:nil];
         
-        // initialize VOIP Push Registry
-        self.voipPushRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
-        self.voipPushRegistry.delegate = self;
-        self.voipPushRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
-        
-        // initialize CallKit (based on Twilio ObjCVoiceCallKitQuickstart)
-        NSString *incomingCallAppName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"TVPIncomingCallAppName"];
-        CXProviderConfiguration *configuration = [[CXProviderConfiguration alloc] initWithLocalizedName:incomingCallAppName];
-        configuration.maximumCallGroups = 1;
-        configuration.maximumCallsPerCallGroup = 1;
-        UIImage *callkitIcon = [UIImage imageNamed:@"logo.png"];
-        configuration.iconTemplateImageData = UIImagePNGRepresentation(callkitIcon);
-        configuration.ringtoneSound = @"traditionalring.mp3";
-        
-        self.callKitProvider = [[CXProvider alloc] initWithConfiguration:configuration];
-        [self.callKitProvider setDelegate:self queue:nil];
-            
-        self.callKitCallController = [[CXCallController alloc] init];
+    self.callKitCallController = [[CXCallController alloc] init];
 
-        [self javascriptCallback:@"onclientinitialized"];
-    }
+    [self javascriptCallback:@"onclientinitialized"];
     
 }
 
@@ -150,14 +146,12 @@ static NSString *const kTwimlParamFrom = @"From";
     // These should superceed the self.accessToken and self.pushDeviceToken.
     // This is because in the event that the access token has expired, you cannot
     // Unregister the device token, so in the event that the pushRegistry calls
-    // ondidinvalidatepushtoken, the unregister should be called, supplying a new
-    // accessToken and the deviceToken.
+    // ondidinvalidatepushtoken, the unregister should be called, supplying a new accessToken.
     
     // retain this command as the callback to use for raising Twilio events
     self.callback = command.callbackId;
     
     NSString* accessToken = self.accessToken;
-    NSString* deviceToken = self.pushDeviceToken;
     
     if(command.arguments.count > 0) {
         NSDictionary* args = command.arguments[0];
@@ -165,21 +159,24 @@ static NSString *const kTwimlParamFrom = @"From";
         if([args objectForKey:@"accessToken"] == nil) {
             accessToken = args[@"accessToken"];
         }
-        if([args objectForKey:@"deviceToken"] == nil) {
-            accessToken = args[@"deviceToken"];
-        }
+    }
+    
+    // If the access token or device token are empty, then the registration never took place.
+    // There is no need to unregister the client.
+    if(accessToken == nil || self.pushDeviceToken == nil) {
+        NSLog(@"TwilioVoicePlugin - No unregistration required.");
+        return;
     }
     
     
     [TwilioVoice unregisterWithAccessToken: accessToken
-                               deviceToken: deviceToken
+                               deviceToken: self.pushDeviceToken
                                 completion: ^(NSError * _Nullable error) {
         if (error) {
             NSLog(@"Error unregistering Voice Client for VOIP Push: %@", [error localizedDescription]);
         } else {
             NSLog(@"Unregistered Voice Client for VOIP Push");
         }
-        self.pushDeviceToken = nil;
         [self javascriptCallback:@"onunregistered"];
     }];
     
@@ -302,7 +299,7 @@ static NSString *const kTwimlParamFrom = @"From";
     NSLog(@"Update Call %@ %@", self.callUUID, params);
 
     CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
-    callUpdate.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];;
+    callUpdate.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypePhoneNumber value:@"+19511112222"];;
     
     callUpdate.localizedCallerName = params[@"localizedCallerName"];
     callUpdate.supportsDTMF = [params[@"supportsDtmf"] isEqual: @"true"];
@@ -316,22 +313,33 @@ static NSString *const kTwimlParamFrom = @"From";
 
 }
 
-- (void) reauthenticate: (CDVInvokedUrlCommand*)command {
-    // Called from Javascript code to reauthenticate
-    NSLog(@"Updating push device token for VOIP: %@",self.pushDeviceToken);
-    [TwilioVoice registerWithAccessToken:self.accessToken
-                             deviceToken:self.pushDeviceToken
-                              completion:^(NSError * _Nullable error) {
-        if (error) {
-            NSLog(@"Error registering Voice Client for VOIP Push: %@", [error localizedDescription]);
-        } else {
-            NSLog(@"Registered Voice Client for VOIP Push");
-        }
-    }];
+- (void) registerWithAccessToken: (CDVInvokedUrlCommand*)command {
+    
+    self.accessToken = [command.arguments objectAtIndex:0];
+    if (self.accessToken) {
+        // Called from Javascript code to reauthenticate
+        NSLog(@"Updating push device token for VOIP: %@",self.pushDeviceToken);
+        [TwilioVoice registerWithAccessToken:self.accessToken
+                                 deviceToken:self.pushDeviceToken
+                                  completion:^(NSError * _Nullable error) {
+            if (error) {
+                NSLog(@"Error registering Voice Client for VOIP Push: %@", [error localizedDescription]);
+            } else {
+                NSLog(@"Registered Voice Client for VOIP Push");
+            }
+        }];
+    
+    }
+    else {
+        NSLog(@"registerWithAccessToken did not provide an access token.");
+    }
+    
 }
 
 #pragma mark PKPushRegistryDelegate methods
 - (void)pushRegistry:(PKPushRegistry *)registry didUpdatePushCredentials:(PKPushCredentials *)credentials forType:(PKPushType)type {
+    NSLog(@"TwilioVoicePlugin - pushRegistry:didUpdatePushCredentials");
+    
     if ([type isEqualToString:PKPushTypeVoIP]) {
         const unsigned *tokenBytes = [credentials.token bytes];
         
@@ -340,8 +348,8 @@ static NSString *const kTwimlParamFrom = @"From";
                                         ntohl(tokenBytes[3]), ntohl(tokenBytes[4]), ntohl(tokenBytes[5]),
                                         ntohl(tokenBytes[6]), ntohl(tokenBytes[7])];
 
-        // the onreauthenticate should fire the reauthenticate function in js supplying a new accessToken.
-        [self javascriptCallback:@"onreauthenticate" withArguments:@{
+        // the on authenticate required should fire the reauthenticate function in js supplying a new twilio JWT accessToken.
+        [self javascriptCallback:@"onauthenticaterequired" withArguments:@{
             @"reason": @"updatedPushCredentials",
             @"deviceToken": self.pushDeviceToken
         }];
@@ -375,7 +383,7 @@ static NSString *const kTwimlParamFrom = @"From";
     }
     
     if ([payload.dictionaryPayload[@"twi_message_type"] isEqualToString:@"twilio.voice.cancel"]) {
-        CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:@"alice"];
+        CXHandle *callHandle = [[CXHandle alloc] initWithType:CXHandleTypePhoneNumber value:@"+1231231234"];
 
         CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
         callUpdate.remoteHandle = callHandle;

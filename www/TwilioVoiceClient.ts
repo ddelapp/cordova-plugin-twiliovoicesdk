@@ -105,10 +105,8 @@ export class TwilioVoiceClient {
 
    /**
     * Initializes the plugin to send and receive calls.
-    * 
-    * @param accessToken - A JWT access token which will be used to identify this phone number.
     */
-    public initialize(accessToken: string) : void {
+    public initialize() : void {
 
         var error = (error: any) => {
             //TODO: Handle errors here
@@ -120,21 +118,28 @@ export class TwilioVoiceClient {
             if (this.delegate[callback['callback']]) this.delegate[callback['callback']](argument);
         }
         
-        this.cordovaExec(success, error, "initializeWithAccessToken", [accessToken]);
+        this.cordovaExec(success, error, "initialize", null);
+    }
+
+   /**
+    * After the plugin has been initialized, Register this client with Twilio using an access token.
+    * This should be called when onReauthenticateRequired is fired.
+    * 
+    * @param accessToken - A JWT access token which will be used to identify this phone number.
+    */
+    public registerWithAccessToken(accessToken: string) : void {
+        this.cordovaExec(null, null , "registerWithAccessToken", [accessToken]);
     }
 
     /**
      * Unregisters the twilio client from receiving inbound calls.
      * @param accessToken Optional: Provide a valid Twilio JWT.  If this is not supplied the existing
      * token is used, but may have already expired and prevent the unregister from occuring.
-     * @param deviceToken Optional: In the event that the DidInvalidatePushToken was trigger, supply the 
-     * deviceToken provided from that event, and a new accessToken to unregister this client, then reinit.
      */
-    public unregister(accessToken?: string, deviceToken?: string) : Promise<string> {
+    public unregister(accessToken?: string) : Promise<string> {
         return new Promise<string>((resolve, reject) => {
             var args =[];
             if(accessToken) args['accessToken'] = accessToken;
-            if(deviceToken) args['deviceToken'] = deviceToken;
 
             this.cordovaExec(resolve, reject, "unregister", args)
         });
@@ -144,7 +149,7 @@ export class TwilioVoiceClient {
     * Error handler
     * @param fn - The callback delegate.
     */
-    public error(fn: (error: any) => any) : void {
+    public onError(fn: (error: any) => any) : void {
         this.delegate['onerror'] = fn;
     }
 
@@ -152,7 +157,7 @@ export class TwilioVoiceClient {
     * Delegate fired when the Twilio client has been initialized.
     * @param fn - The callback delegate.
     */
-    public clientInitialized(fn: () => any) : void {
+    public onClientInitialized(fn: () => any) : void {
         this.delegate['onclientinitialized'] = fn;
     }
 
@@ -160,7 +165,7 @@ export class TwilioVoiceClient {
     * Delegate fired when a call invite is received.
     * @param fn - The callback delegate.
     */
-    public callInviteReceived(fn: (result: ICallInviteReceived) => any) : void {
+    public onCallInviteReceived(fn: (result: ICallInviteReceived) => any) : void {
         this.delegate['oncallinvitereceived'] = fn;
     }
 
@@ -168,7 +173,7 @@ export class TwilioVoiceClient {
     * Delegate fired when an invite has been canceled.
     * @param fn - The callback delegate.
     */
-    callInviteCanceled(fn: () => any) : void {
+    public onCallInviteCanceled(fn: () => any) : void {
         this.delegate['oncallinvitecanceled'] = fn;
     }
 
@@ -176,7 +181,7 @@ export class TwilioVoiceClient {
     * Delegate fired when a call connects.
     * @param fn - The callback delegate.
     */
-    public callDidConnect(fn: (result: ICallDidConnect) => any) : void {
+    public onCallDidConnect(fn: (result: ICallDidConnect) => any) : void {
         this.delegate['oncalldidconnect'] = fn;
     }
 
@@ -184,7 +189,7 @@ export class TwilioVoiceClient {
      * Delegate fired when a call disconnects.
      * @param fn - The callback delegate.
      */
-     public callDidDisconnect(fn: () => any) : void {
+     public onCallDidDisconnect(fn: () => any) : void {
          this.delegate['oncalldiddisconnect'] = fn;
      }
 
@@ -192,13 +197,22 @@ export class TwilioVoiceClient {
       * Delegate fired when the twilio VoIP push notification token has been invalidated.
       * @param fn - The callback delegate.
       */
-      public didInvalidatePushToken(fn: (result: IDidInvalidatePushToken) => any) : void {
+      public onDidInvalidatePushToken(fn: (result: IDidInvalidatePushToken) => any) : void {
           this.delegate['ondidinvalidatepushtoken'] = fn;
+      }
+
+
+     /**
+      * Delegate fired when the twilio VoIP push notification token been updated.
+      * @param fn - The callback delegate.
+      */
+      public onAuthenticateRequired(fn: (result: IDidInvalidatePushToken) => any) : void {
+          this.delegate['onauthenticaterequired'] = fn;
       }
 
       private cordovaExec(resolve: any, reject: any, method: string, args: any)
       {
-        if(!Cordova) {
+        if(typeof Cordova === 'undefined') {
             console.warn('Native: tried calling ' +
             this.PLUGIN_NAME +
             '.' +
