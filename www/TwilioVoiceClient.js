@@ -107,9 +107,10 @@ var TwilioVoiceClient = /** @class */ (function () {
      * This should be called when onReauthenticateRequired is fired.
      *
      * @param accessToken - A JWT access token which will be used to identify this phone number.
+     * @param deviceToken - The FCM or iOS APN device token
      */
-    TwilioVoiceClient.prototype.registerWithAccessToken = function (accessToken) {
-        this.cordovaExec(null, null, "registerWithAccessToken", [accessToken]);
+    TwilioVoiceClient.prototype.registerWithAccessToken = function (accessToken, deviceToken) {
+        this.cordovaExec(null, null, "registerWithAccessToken", [accessToken, deviceToken]);
     };
     /**
      * Unregisters the twilio client from receiving inbound calls.

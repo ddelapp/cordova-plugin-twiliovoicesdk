@@ -126,9 +126,10 @@ export class TwilioVoiceClient {
     * This should be called when onReauthenticateRequired is fired.
     * 
     * @param accessToken - A JWT access token which will be used to identify this phone number.
+    * @param deviceToken - The FCM or iOS APN device token
     */
-    public registerWithAccessToken(accessToken: string) : void {
-        this.cordovaExec(null, null , "registerWithAccessToken", [accessToken]);
+    public registerWithAccessToken(accessToken: string, deviceToken: string) : void {
+        this.cordovaExec(null, null , "registerWithAccessToken", [accessToken, deviceToken]);
     }
 
     /**
