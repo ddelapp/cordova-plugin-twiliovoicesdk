@@ -307,7 +307,13 @@ public class TwilioVoicePlugin extends CordovaPlugin {
             public void run() {
                 try {
                     String accessToken = arguments.getString(0);
-                    String number = arguments.getString(1);
+                    JSONObject caller = arguments.optJSONObject(1);
+                    String number = caller.getString("to");
+
+                    Log.e(TAG, "patrick call: " + accessToken);
+                    Log.e(TAG, "patrick call: " + caller);
+                    Log.e(TAG, "patrick call: " + number);
+
                     Map<String, String> map = new HashMap();
                     map.put("To", number);
                     map.put("accessToken", accessToken);
