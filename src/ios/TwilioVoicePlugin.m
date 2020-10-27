@@ -786,7 +786,7 @@ static NSString *const kTwimlParamFrom = @"From";
     TwilioVoicePlugin __weak *weakSelf = self;
     TVOConnectOptions *connectOptions = [TVOConnectOptions optionsWithAccessToken:self.accessToken block:^(TVOConnectOptionsBuilder *builder) {
         TwilioVoicePlugin __strong *strongSelf = weakSelf;
-        builder.params = @{kTwimlParamTo: strongSelf.outgoingCallParams[@"to"], @"Special": @"Param"};
+        builder.params = @{kTwimlParamTo: strongSelf.outgoingCallParams[@"to"], @"Special": @"Param", @"userPhoneId":strongSelf.outgoingCallParams[@"userPhoneId"]};
         builder.uuid = uuid;
     }];
     self.call = [TwilioVoice connectWithOptions:connectOptions delegate:self];
