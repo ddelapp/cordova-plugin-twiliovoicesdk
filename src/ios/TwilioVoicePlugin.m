@@ -128,7 +128,7 @@ static NSString *const kTwimlParamFrom = @"From";
 
     configuration.maximumCallGroups = 1;
     configuration.maximumCallsPerCallGroup = 1;
-    UIImage *callkitIcon = [UIImage imageNamed:@"logo.png"];
+    UIImage *callkitIcon = [UIImage imageNamed:@"CallKitIcon"];
     configuration.iconTemplateImageData = UIImagePNGRepresentation(callkitIcon);
     configuration.ringtoneSound = @"traditionalring.mp3";
 
