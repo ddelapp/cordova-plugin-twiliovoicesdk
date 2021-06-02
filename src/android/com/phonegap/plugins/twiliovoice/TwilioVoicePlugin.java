@@ -95,11 +95,9 @@ public class TwilioVoicePlugin extends CordovaPlugin {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            Log.d(TAG, "patrick: " + action);
 
             if (action.equals(ACTION_SET_FCM_TOKEN)) {
                 String fcmToken = intent.getStringExtra(KEY_FCM_TOKEN);
-                Log.i(TAG, "patrick: FCM Token : " + fcmToken);
                 mFCMToken = fcmToken;
                 if (fcmToken == null) {
                     javascriptErrorback(0, "Did not receive GCM Token - unable to receive calls", mInitCallbackContext);
@@ -230,10 +228,6 @@ public class TwilioVoicePlugin extends CordovaPlugin {
     @Override
     public boolean execute(final String action, final JSONArray args,
                            final CallbackContext callbackContext) throws JSONException {
-        Log.d(TAG, "patrick: am-i-here");
-        Log.d(TAG, "patrick: " + action);
-
-
         if ("initialize".equals(action)) {
             mInitCallbackContext = callbackContext;
 
@@ -309,14 +303,12 @@ public class TwilioVoicePlugin extends CordovaPlugin {
                     String accessToken = arguments.getString(0);
                     JSONObject caller = arguments.optJSONObject(1);
                     String number = caller.getString("to");
-
-                    Log.e(TAG, "patrick call: " + accessToken);
-                    Log.e(TAG, "patrick call: " + caller);
-                    Log.e(TAG, "patrick call: " + number);
+                    String userPhoneId = caller.getString("userPhoneId");
 
                     Map<String, String> map = new HashMap();
                     map.put("To", number);
                     map.put("accessToken", accessToken);
+                    map.put("userPhoneId", userPhoneId);
 
                     ConnectOptions connectOptions = new ConnectOptions.Builder(accessToken)
                             .params(map)
@@ -601,10 +593,6 @@ public class TwilioVoicePlugin extends CordovaPlugin {
      * Register your FCM token with Twilio to enable receiving incoming calls via FCM
      */
     private void register() {
-        Log.d(TAG, "patrick: mAccessToken: " + mAccessToken);
-        Log.d(TAG, "patrick: mFCMToken: " + mFCMToken);
-
-
         Voice.register(mAccessToken, Voice.RegistrationChannel.FCM, mFCMToken, mRegistrationListener);
     }
 
