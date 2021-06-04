@@ -138,9 +138,13 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
      */
     @TargetApi(Build.VERSION_CODES.O)
     public Notification buildNotification(String text, PendingIntent pendingIntent, Bundle extras) {
-        int iconIdentifier = getResources().getIdentifier("icon", "mipmap", getPackageName());
+        int iconIdentifier = getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
+        if (iconIdentifier == 0) {
+            iconIdentifier = getResources().getIdentifier("ic_launcher", "drawable", getPackageName());
+        }
         int incomingCallAppNameId = getResources().getIdentifier("incoming_call_app_name", "string", getPackageName());
-        String contentTitle = getString(incomingCallAppNameId);
+        //String contentTitle = getString(incomingCallAppNameId);   -- this crashes for some reason, default to empty string.
+        String contentTitle = "";
         return new Notification.Builder(getApplicationContext(), VOICE_CHANNEL)
                 .setSmallIcon(iconIdentifier)
                 .setContentTitle(contentTitle)
