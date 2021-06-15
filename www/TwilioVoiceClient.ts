@@ -18,7 +18,7 @@ export class TwilioVoiceClient {
 
     /**
     * Make an outgoing Call.
-    * 
+    *
     * @param accessToken - A JWT access token which will be used to connect a Call.
     * @param params - Mimics the TVOConnectOptions ["To", "From"]
     */
@@ -28,8 +28,8 @@ export class TwilioVoiceClient {
 
    /**
     * Send a string of digits.
-    * 
-    * @param digits - A string of characters to be played. Valid values are ‘0’ - ‘9’, 
+    *
+    * @param digits - A string of characters to be played. Valid values are ‘0’ - ‘9’,
     * ‘*’, ‘#’, and ‘w’. Each ‘w’ will cause a 500 ms pause between digits sent.
     */
     public sendDigits(digits: string) : void {
@@ -74,7 +74,7 @@ export class TwilioVoiceClient {
 
    /**
     * Turns on or off phone speaker.
-    * 
+    *
     * @param mode - Can be either on or off.
     */
     public setSpeaker(mode: string) : void {
@@ -97,7 +97,7 @@ export class TwilioVoiceClient {
     }
 
    /**
-    * Returns a call delegate with a call mute or unmute. 
+    * Returns a call delegate with a call mute or unmute.
     */
     public isCallMuted(fn: (isMuted: boolean) => boolean) : void {
         this.cordovaExec(fn, null, "isCallMuted", null);
@@ -117,14 +117,14 @@ export class TwilioVoiceClient {
             var argument = callback['arguments'];
             if (this.delegate[callback['callback']]) this.delegate[callback['callback']](argument);
         }
-        
+
         this.cordovaExec(success, error, "initialize", null);
     }
 
    /**
     * After the plugin has been initialized, Register this client with Twilio using an access token.
     * This should be called when onReauthenticateRequired is fired.
-    * 
+    *
     * @param accessToken - A JWT access token which will be used to identify this phone number.
     * @param deviceToken - The FCM or iOS APN device token
     */
@@ -209,6 +209,10 @@ export class TwilioVoiceClient {
       */
       public onAuthenticateRequired(fn: (result: IDidInvalidatePushToken) => any) : void {
           this.delegate['onauthenticaterequired'] = fn;
+      }
+
+      public onMessageReceived(fn: (result) => any) : void {
+        this.delegate['onmessagereceived'] = fn;
       }
 
       private cordovaExec(resolve: any, reject: any, method: string, args: any)

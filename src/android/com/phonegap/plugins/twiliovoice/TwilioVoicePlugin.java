@@ -85,6 +85,7 @@ public class TwilioVoicePlugin extends CordovaPlugin {
     public static final String INCOMING_CALL_INVITE = "INCOMING_CALL_INVITE";
     public static final String INCOMING_CALL_NOTIFICATION_ID = "INCOMING_CALL_NOTIFICATION_ID";
     public static final String ACTION_INCOMING_CALL = "INCOMING_CALL";
+    public static final String ACTION_INCOMING_SNS = "INCOMING_SNS";
 
     public static final String KEY_FCM_TOKEN = "FCM_TOKEN";
 
@@ -110,6 +111,15 @@ public class TwilioVoicePlugin extends CordovaPlugin {
                  * Handle the incoming call invite
                  */
                 handleIncomingCallIntent(intent);
+            } else if (action.equals(ACTION_INCOMING_SNS)) {
+                //handleIncomingCallIntent(intent);
+                Log.d("patrick", "receive hash map here");
+
+                //Intent intent = getIntent();
+                HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra("hashmap");
+                Log.d("patrick", hashMap.get("payload"));
+
+                javascriptCallback("onmessagereceived", new JSONObject(hashMap), mInitCallbackContext);
             }
         }
     };
@@ -234,6 +244,7 @@ public class TwilioVoicePlugin extends CordovaPlugin {
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction(ACTION_SET_FCM_TOKEN);
             intentFilter.addAction(ACTION_INCOMING_CALL);
+            intentFilter.addAction(ACTION_INCOMING_SNS);
             LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(cordova.getActivity());
             lbm.registerReceiver(mBroadcastReceiver, intentFilter);
 
@@ -532,9 +543,12 @@ public class TwilioVoicePlugin extends CordovaPlugin {
     // Plugin-to-Javascript communication methods
     private void javascriptCallback(String event, JSONObject arguments,
                                     CallbackContext callbackContext) {
+
+        Log.d("patrick", event);
         if (callbackContext == null) {
             return;
         }
+        Log.d("patrick", "line 2");
         JSONObject options = new JSONObject();
         try {
             options.putOpt("callback", event);
@@ -544,10 +558,14 @@ public class TwilioVoicePlugin extends CordovaPlugin {
                     PluginResult.Status.JSON_EXCEPTION));
             return;
         }
+
+        Log.d("patrick", "line 3");
+
         PluginResult result = new PluginResult(Status.OK, options);
         result.setKeepCallback(true);
         callbackContext.sendPluginResult(result);
 
+        Log.d("patrick", "line 4");
     }
 
     private void javascriptCallback(String event,

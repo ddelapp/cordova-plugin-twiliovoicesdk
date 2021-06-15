@@ -31,6 +31,7 @@ import com.phonegap.plugins.twiliovoice.SoundPoolManager;
 import com.phonegap.plugins.twiliovoice.TwilioVoicePlugin;
 
 import java.util.Map;
+import java.util.HashMap;
 
 public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
 
@@ -54,12 +55,14 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
      */
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
-        Log.d(TAG, "Received onMessageReceived()");
-        Log.d(TAG, "Bundle data: " + remoteMessage.getData());
-        Log.d(TAG, "From: " + remoteMessage.getFrom());
+        Log.d(TAG, "patrick0: " + remoteMessage.getData());
+        Log.d(TAG, "patrick1: " + remoteMessage.getData().getClass().getName());
+        Log.d(TAG, "patrick2: " + remoteMessage.getNotification());
+
+        boolean isCall = remoteMessage.getData().containsKey("twi_account_sid");
 
         // Check if message contains a data payload.
-        if (remoteMessage.getData().size() > 0) {
+        if (isCall) {
             Map<String, String> data = remoteMessage.getData();
             final int notificationId = (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
             Voice.handleMessage(data, new MessageListener() {
@@ -74,6 +77,15 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
                     Log.e(TAG, cancelledCallInvite.getFrom());
                 }
             });
+        } else {
+            HashMap<String, String> hashMap = new HashMap<String, String>(remoteMessage.getData());
+
+            Log.d(TAG, "patrick3: " + hashMap.getClass().getName());
+
+            Intent intent = new Intent(TwilioVoicePlugin.ACTION_INCOMING_SNS);
+            intent.putExtra("hashmap", hashMap);
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
         }
     }
 
