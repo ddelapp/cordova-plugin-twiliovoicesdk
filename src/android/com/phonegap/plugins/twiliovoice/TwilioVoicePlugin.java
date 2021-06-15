@@ -112,13 +112,7 @@ public class TwilioVoicePlugin extends CordovaPlugin {
                  */
                 handleIncomingCallIntent(intent);
             } else if (action.equals(ACTION_INCOMING_SNS)) {
-                //handleIncomingCallIntent(intent);
-                Log.d("patrick", "receive hash map here");
-
-                //Intent intent = getIntent();
                 HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra("hashmap");
-                Log.d("patrick", hashMap.get("payload"));
-
                 javascriptCallback("onmessagereceived", new JSONObject(hashMap), mInitCallbackContext);
             }
         }
@@ -543,12 +537,9 @@ public class TwilioVoicePlugin extends CordovaPlugin {
     // Plugin-to-Javascript communication methods
     private void javascriptCallback(String event, JSONObject arguments,
                                     CallbackContext callbackContext) {
-
-        Log.d("patrick", event);
         if (callbackContext == null) {
             return;
         }
-        Log.d("patrick", "line 2");
         JSONObject options = new JSONObject();
         try {
             options.putOpt("callback", event);
@@ -559,13 +550,9 @@ public class TwilioVoicePlugin extends CordovaPlugin {
             return;
         }
 
-        Log.d("patrick", "line 3");
-
         PluginResult result = new PluginResult(Status.OK, options);
         result.setKeepCallback(true);
         callbackContext.sendPluginResult(result);
-
-        Log.d("patrick", "line 4");
     }
 
     private void javascriptCallback(String event,

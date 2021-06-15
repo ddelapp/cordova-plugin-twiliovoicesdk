@@ -55,9 +55,9 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
      */
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
-        Log.d(TAG, "patrick0: " + remoteMessage.getData());
-        Log.d(TAG, "patrick1: " + remoteMessage.getData().getClass().getName());
-        Log.d(TAG, "patrick2: " + remoteMessage.getNotification());
+        Log.d(TAG, "onMessageReceived: " + remoteMessage.getData());
+        Log.d(TAG, "onMessageReceived: " + remoteMessage.getData().getClass().getName());
+        Log.d(TAG, "onMessageReceived: " + remoteMessage.getNotification());
 
         boolean isCall = remoteMessage.getData().containsKey("twi_account_sid");
 
@@ -79,8 +79,6 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
             });
         } else {
             HashMap<String, String> hashMap = new HashMap<String, String>(remoteMessage.getData());
-
-            Log.d(TAG, "patrick3: " + hashMap.getClass().getName());
 
             Intent intent = new Intent(TwilioVoicePlugin.ACTION_INCOMING_SNS);
             intent.putExtra("hashmap", hashMap);
