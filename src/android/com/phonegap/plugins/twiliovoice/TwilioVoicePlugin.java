@@ -616,7 +616,7 @@ public class TwilioVoicePlugin extends CordovaPlugin {
                 SoundPoolManager.getInstance(cordova.getActivity()).playRinging();
                 NotificationManager mNotifyMgr =
                         (NotificationManager) cordova.getActivity().getSystemService(Activity.NOTIFICATION_SERVICE);
-                mNotifyMgr.cancel(intent.getIntExtra(INCOMING_CALL_NOTIFICATION_ID, 0));
+                //mNotifyMgr.cancel(intent.getIntExtra(INCOMING_CALL_NOTIFICATION_ID, 0));
                 JSONObject callInviteProperties = new JSONObject();
                 try {
                     callInviteProperties.putOpt("from", mCallInvite.getFrom());
