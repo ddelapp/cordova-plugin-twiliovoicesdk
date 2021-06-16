@@ -68,7 +68,11 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
             Voice.handleMessage(data, new MessageListener() {
                 @Override
                 public void onCallInvite(CallInvite callInvite) {
-                    VoiceFirebaseMessagingService.this.notify(callInvite, notificationId);
+                    //VoiceFirebaseMessagingService.this.notify(callInvite, notificationId);
+                    String phoneNumber = remoteMessage.getData().get("twi_from").substring(2);
+                    phoneNumber = phoneNumber.replaceFirst("(\\d{3})(\\d{3})(\\d+)", "($1) $2-$3"); // Format 10-digit number.
+
+                    VoiceFirebaseMessagingService.this.notifyAlt(callInvite, notificationId, phoneNumber);
                     VoiceFirebaseMessagingService.this.sendCallInviteToPlugin(callInvite, notificationId);
                 }
 
@@ -85,6 +89,50 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
             LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
         }
+    }
+
+    private void notifyAlt(CallInvite callInvite, int notificationId, String body) {
+        String callSid = callInvite.getCallSid();
+        Notification notification = null;
+
+        Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        intent.setAction(TwilioVoicePlugin.ACTION_INCOMING_CALL);
+        intent.putExtra(TwilioVoicePlugin.INCOMING_CALL_NOTIFICATION_ID, notificationId);
+        intent.putExtra(TwilioVoicePlugin.INCOMING_CALL_INVITE, callInvite);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, notificationId, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
+        Bundle extras = new Bundle();
+        extras.putInt(NOTIFICATION_ID_KEY, notificationId);
+        extras.putString(CALL_SID_KEY, callSid);
+
+        int iconIdentifier = getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
+        if (iconIdentifier == 0) {
+            iconIdentifier = getResources().getIdentifier("ic_launcher", "drawable", getPackageName());
+        }
+
+        NotificationCompat.Builder notificationBuilder =
+                new NotificationCompat.Builder(this, VOICE_CHANNEL)
+                        .setSmallIcon(iconIdentifier)
+                        .setContentTitle("Call From: ")
+                        .setContentText(body)
+                        .setContentIntent(pendingIntent)
+                        .setAutoCancel(true)
+                        .setExtras(extras)
+                        .setAutoCancel(true);
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        // Since android Oreo notification channel is needed.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel callInviteChannel = new NotificationChannel(VOICE_CHANNEL, "Primary Voice Channel", NotificationManager.IMPORTANCE_DEFAULT);
+            callInviteChannel.setLightColor(Color.RED);
+            callInviteChannel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+            notificationManager.createNotificationChannel(callInviteChannel);
+        }
+
+        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
     }
 
     private void notify(CallInvite callInvite, int notificationId) {
