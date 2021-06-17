@@ -73,7 +73,7 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
 
                 @Override
                 public void onCancelledCallInvite(@NonNull CancelledCallInvite cancelledCallInvite) {
-                    Log.e(TAG, cancelledCallInvite.getFrom());
+                    VoiceFirebaseMessagingService.this.sendCallInviteCancelToPlugin();
                 }
             });
         } else {
@@ -153,4 +153,11 @@ public class VoiceFirebaseMessagingService extends FirebaseMessagingService {
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
+
+    private void sendCallInviteCancelToPlugin() {
+        Intent intent = new Intent(TwilioVoicePlugin.INCOMING_CALL_INVITE_CANCEL);
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+    }
+
 }

@@ -83,6 +83,7 @@ public class TwilioVoicePlugin extends CordovaPlugin {
     // Constants for Intents and Broadcast Receivers
     public static final String ACTION_SET_FCM_TOKEN = "SET_FCM_TOKEN";
     public static final String INCOMING_CALL_INVITE = "INCOMING_CALL_INVITE";
+    public static final String INCOMING_CALL_INVITE_CANCEL = "INCOMING_CALL_INVITE_CANCEL";
     public static final String INCOMING_CALL_NOTIFICATION_ID = "INCOMING_CALL_NOTIFICATION_ID";
     public static final String ACTION_INCOMING_CALL = "INCOMING_CALL";
     public static final String ACTION_INCOMING_SNS = "INCOMING_SNS";
@@ -114,6 +115,9 @@ public class TwilioVoicePlugin extends CordovaPlugin {
             } else if (action.equals(ACTION_INCOMING_SNS)) {
                 HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra("hashmap");
                 javascriptCallback("onmessagereceived", new JSONObject(hashMap), mInitCallbackContext);
+            } else if (action.equals(INCOMING_CALL_INVITE_CANCEL)) {
+                SoundPoolManager.getInstance(cordova.getActivity()).stopRinging();
+                javascriptCallback("oncallinvitecanceled", mInitCallbackContext);
             }
         }
     };
@@ -239,6 +243,7 @@ public class TwilioVoicePlugin extends CordovaPlugin {
             intentFilter.addAction(ACTION_SET_FCM_TOKEN);
             intentFilter.addAction(ACTION_INCOMING_CALL);
             intentFilter.addAction(ACTION_INCOMING_SNS);
+            intentFilter.addAction(INCOMING_CALL_INVITE_CANCEL);
             LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(cordova.getActivity());
             lbm.registerReceiver(mBroadcastReceiver, intentFilter);
 
